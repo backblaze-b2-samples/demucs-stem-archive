@@ -14,6 +14,24 @@ This is a sample app for producers, remix engineers, and karaoke-platform
 operators who want their separated stems to live in durable object storage,
 not on a laptop.
 
+## What it looks like
+
+**Dashboard** — archive metrics (tracks, stems, audio stored, write-amplification ratio), a 7-day separation-activity chart, and recent separations.
+
+![Dashboard with archive metrics, separation-activity chart, and recent separations](docs/images/dashboard.png)
+
+**Add Track** — an audio dropzone that archives the original to B2 and enqueues a Demucs separation job.
+
+![Add Track page with the audio drag-and-drop dropzone](docs/images/add-track.png)
+
+**Stem Library** — every track and its four stems, with per-track status and the vocals/drums/bass/other stem chips.
+
+![Stem Library listing tracks with their four-stem status chips](docs/images/library.png)
+
+**Stem detail** — a track expanded into inline players for each stem, with streaming and download straight from the B2 bucket.
+
+![A track expanded into inline vocals, drums, bass, and other stem players](docs/images/library-track-detail.png)
+
 ## The teaching point: write amplification
 
 Every source track lands **5 objects** in B2 — 1 original + 4 stems — so a
