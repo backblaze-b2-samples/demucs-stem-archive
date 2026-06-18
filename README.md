@@ -24,10 +24,6 @@ not on a laptop.
 
 ![Add Track page with the audio drag-and-drop dropzone](docs/images/add-track.png)
 
-**Stem Library** — every track and its four stems, with per-track status and the vocals/drums/bass/other stem chips.
-
-![Stem Library listing tracks with their four-stem status chips](docs/images/library.png)
-
 **Stem detail** — a track expanded into inline players for each stem, with streaming and download straight from the B2 bucket.
 
 ![A track expanded into inline vocals, drums, bass, and other stem players](docs/images/library-track-detail.png)
