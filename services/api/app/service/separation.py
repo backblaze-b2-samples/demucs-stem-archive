@@ -96,8 +96,14 @@ def _run_demucs(input_path: Path, out_dir: Path) -> Path:
         "demucs",
         "-n",
         settings.demucs_model,
-        "-d",
-        settings.demucs_device,
+    ]
+    # Demucs has no "auto" device value; its native default already picks
+    # cuda-if-available-else-cpu. So for the documented "auto" default we
+    # simply omit -d and let demucs auto-detect. Only an explicit device
+    # (cpu/cuda/mps/...) is passed through.
+    if settings.demucs_device != "auto":
+        cmd += ["-d", settings.demucs_device]
+    cmd += [
         "--out",
         str(out_dir),
         str(input_path),

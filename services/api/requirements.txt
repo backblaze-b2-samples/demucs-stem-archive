@@ -11,6 +11,12 @@ boto3>=1.35.0
 # app/service/separation.py — it is NEVER imported into the API process, so
 # `from main import app` and the test suite stay light and torch-free.
 demucs>=4.0.1
+# torchaudio >= 2.11 routes ta.save() through TorchCodec, which demucs uses to
+# write the stem WAVs. Without it, separation runs the model to 100% then dies
+# at the save step ("TorchCodec is required for save_with_torchcodec").
+# torchcodec 0.14 matches torch 2.12 / torchaudio 2.11 and decodes/encodes via
+# the system FFmpeg, so ffmpeg must be on PATH (already required for ingest).
+torchcodec>=0.14.0
 
 # Dev / quality
 ruff>=0.8.0

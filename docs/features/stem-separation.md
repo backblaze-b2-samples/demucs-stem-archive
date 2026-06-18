@@ -20,8 +20,19 @@ using **Demucs (htdemucs)** run locally, and upload each stem to Backblaze B2.
 Demucs (and torch) run **only as a subprocess**:
 
 ```
-python -m demucs -n <DEMUCS_MODEL> -d <DEMUCS_DEVICE> --out <tmpdir> <input>
+python -m demucs -n <DEMUCS_MODEL> [-d <DEMUCS_DEVICE>] --out <tmpdir> <input>
 ```
+
+The `-d` flag is **conditional**. Demucs has no `auto` device value; its native
+default already picks CUDA-if-available-else-CPU. So when `DEMUCS_DEVICE` is the
+shipped default `auto`, `_run_demucs` **omits `-d` entirely** and lets Demucs
+auto-detect. An explicit value (`cpu`, `cuda`, `mps`, …) is passed through as
+`-d <device>`. (Passing `-d auto` literally raises
+`RuntimeError: Expected one of cpu, cuda, … device type … : auto`.)
+
+Stems are written by torchaudio's `ta.save()`, which since torchaudio 2.11
+routes through **TorchCodec** — hence `torchcodec` is a runtime dependency and
+the system `ffmpeg` must be on PATH (TorchCodec encodes through it).
 
 Nothing in this module imports torch or demucs at module top level, so
 `from main import app` and pytest collection stay light and torch-free. Tests
@@ -56,7 +67,8 @@ ratio (`objects / originals`) across the whole archive.
 
 ## Verification
 - Test files: `services/api/tests/test_separation.py`
-- Required cases: 4 stems uploaded + `done`, failure captured, enqueue registers `pending`
+- Required cases: 4 stems uploaded + `done`, failure captured, enqueue registers `pending`,
+  `-d` omitted when device is `auto`, `-d <device>` passed for an explicit device
 - Quick verify: `pnpm test:api`
 - Pass criteria: all pytest green; torch is never imported during tests
 

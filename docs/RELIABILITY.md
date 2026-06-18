@@ -44,6 +44,19 @@ Reliability expectations and practices for this project.
 - A single-worker `ThreadPoolExecutor` runs one separation at a time, so a
   CPU/GPU-heavy run never thrashes the host
 
+## Demucs subprocess dependencies
+
+- **Device selection.** `DEMUCS_DEVICE=auto` (the default) is *not* passed to
+  Demucs as `-d auto` — Demucs has no `auto` value and would error. `_run_demucs`
+  omits `-d` for `auto` (Demucs then auto-detects CUDA-else-CPU) and only passes
+  `-d <device>` for an explicit `cpu`/`cuda`/`mps` value.
+- **Stem writing needs TorchCodec.** torchaudio >= 2.11's `ta.save()` (used by
+  Demucs to write the WAVs) routes through TorchCodec. `torchcodec` is therefore
+  pinned in `requirements.txt`, and the system `ffmpeg` must be on PATH (it does
+  the actual encode). Without torchcodec the model runs to 100% then fails at
+  the save step with `ImportError: TorchCodec is required for save_with_torchcodec`,
+  which is captured as a `failed` job — no stems are written.
+
 ## Deployment
 
 - **Local-first.** The Demucs worker is CPU/GPU-bound and meant to run on the

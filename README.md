@@ -29,7 +29,7 @@ credentials are the only secret, and per-run cost is $0.
 ## Quick Start
 
 You need: Node.js >= 20, pnpm >= 9, Python >= 3.11, **ffmpeg** (Demucs decodes
-MP3/FLAC through it), and a free
+MP3/FLAC through it, and TorchCodec uses it to write the stem WAVs), and a free
 **[Backblaze B2 account](https://www.backblaze.com/sign-up/ai-cloud-storage?utm_source=github&utm_medium=referral&utm_campaign=ai_artifacts&utm_content=b2ai-demucs-stem-archive)**.
 
 ### Start a new project
@@ -57,11 +57,14 @@ cd ../..
 ```
 
 > `pip install -r requirements.txt` pulls in **Demucs**, which depends on
-> **torch** + **torchaudio** (a large download). The API process itself never
-> imports torch — Demucs is invoked only as a subprocess — so the model weight
-> is only loaded by the worker. The **first separation** downloads the htdemucs
-> weights (~80 MB) into the torch hub cache. CPU works out of the box; if a
-> CUDA GPU is present, `DEMUCS_DEVICE=auto` uses it automatically.
+> **torch** + **torchaudio** (a large download), plus **torchcodec** —
+> torchaudio >= 2.11 writes the stem WAVs through TorchCodec, which encodes via
+> the system `ffmpeg` (so ffmpeg must be on your PATH). The API process itself
+> never imports torch — Demucs is invoked only as a subprocess — so the model
+> weight is only loaded by the worker. The **first separation** downloads the
+> htdemucs weights (~80 MB) into the torch hub cache. CPU works out of the box;
+> the default `DEMUCS_DEVICE=auto` lets Demucs pick a CUDA GPU when one is
+> present and fall back to CPU otherwise.
 
 **3. Add your B2 credentials**
 
