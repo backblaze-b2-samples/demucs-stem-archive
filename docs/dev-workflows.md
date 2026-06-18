@@ -1,0 +1,130 @@
+<!-- last_verified: 2026-05-21 -->
+# Dev Workflows
+
+Engineering workflows for this repo.
+
+## New Feature
+
+- [ ] Read `AGENTS.md` and `ARCHITECTURE.md`
+- [ ] Read the relevant feature doc in `docs/features/`
+- [ ] For non-trivial changes, create a plan in `docs/exec-plans/active/`
+- [ ] Implement the smallest coherent change
+- [ ] Add or update tests
+- [ ] Run: `pnpm typecheck && pnpm lint && pnpm lint:api && pnpm test:api && pnpm check:structure`
+- [ ] Update docs in the same PR (see AGENTS.md §8)
+- [ ] Move plan to `docs/exec-plans/completed/` after validation
+
+## Bugfix
+
+- [ ] Add a failing test that reproduces the bug
+- [ ] Confirm the test fails
+- [ ] Implement the fix
+- [ ] Rerun tests until green
+- [ ] Update docs if behavior changed
+
+## Refactor
+
+- [ ] Read `ARCHITECTURE.md` — respect layering rules
+- [ ] Ensure structural tests still pass: `pnpm check:structure`
+- [ ] No behavior changes without updating feature docs
+
+## Documentation Update
+
+- [ ] Update only the canonical location (see AGENTS.md §8 doc update mapping)
+- [ ] Never duplicate content — link instead
+- [ ] Update `<!-- last_verified: YYYY-MM-DD -->` header
+
+## Pull Request
+
+- [ ] One coherent change per PR
+- [ ] Run full lint + test suite before submitting
+- [ ] Docs updated in the same PR as code changes
+- [ ] Only change files relevant to the task — no drive-by improvements
+
+## Demucs / backend setup
+
+`pip install -r requirements.txt` pulls in **Demucs** (and torch + torchaudio).
+Demucs decodes MP3/FLAC through **ffmpeg** — install it (`brew install ffmpeg`).
+The first real separation downloads htdemucs weights (~80 MB) into the torch hub
+cache. CPU works; a CUDA GPU is used automatically when `DEMUCS_DEVICE=auto`.
+
+The API process **never imports torch** — Demucs is run only as a subprocess in
+`app/service/separation.py`. So `from main import app` and the whole test suite
+run with only the light deps; torch is not required to run the tests.
+
+## Testing
+
+### Test types
+- **Unit**: pure logic (service layer, grouping, validation)
+- **Integration**: HTTP handlers, B2-mocked flows (`tests/`)
+- **Structural**: layering rules, import boundaries, file-size limits (`tests/test_structure.py`)
+- **E2E**: Playwright browser-driven smoke tests (covers `/upload`, `/library`, `/files`, `/`)
+
+### Mocking Demucs
+`tests/conftest.py` patches `_run_demucs` so the worker logic, B2 uploads, and
+job-state transitions are exercised end-to-end **without ever running torch**.
+Never call the real model in a test.
+
+### Test placement
+- Backend: `services/api/tests/`
+- E2E: project root (Playwright)
+
+### Commands
+- Quick (backend): `pnpm test:api`
+- Structure: `pnpm check:structure`
+- Frontend typecheck: `pnpm typecheck`
+- Frontend lint: `pnpm lint`
+- Backend lint: `pnpm lint:api`
+- Full suite: `pnpm typecheck && pnpm lint && pnpm lint:api && pnpm test:api && pnpm check:structure`
+- E2E: `pnpm test:e2e` (run `pnpm --filter @demucs-stem-archive/web exec playwright install chromium` once first)
+
+### When to run
+- After behavior change: run relevant subset
+- Before PR: run full suite
+
+## Frontend Conventions
+
+- Tailwind v4: config via CSS `@theme` blocks, NOT `tailwind.config.ts`
+- Colors: OKLch format
+- Dark mode: `next-themes` with `@custom-variant dark (&:is(.dark *))`
+- Animations: `tw-animate-css` (not `tailwindcss-animate`)
+- shadcn/ui components in `src/components/ui/` are generated — never modify them
+
+## Data Fetching
+
+All API reads/writes flow through TanStack Query hooks in
+`apps/web/src/lib/queries.ts`. Don't add bare `useEffect + fetch` patterns
+to components.
+
+**Read** — use the hooks directly:
+
+```tsx
+const { data, isLoading, error, refetch } = useFiles(prefix, limit);
+const { data: stats } = useFileStats();
+```
+
+Surface errors via `<ErrorState error={error} onRetry={() => refetch()} />`
+rather than silently rendering empty UI.
+
+**Write** — wrap mutations with `useMutation` and invalidate on success:
+
+```tsx
+const deleteMutation = useDeleteFile();
+deleteMutation.mutate(file.key, {
+  onSuccess: () => toast.success("Deleted"),
+});
+```
+
+`useDeleteFile()` already calls `queryClient.invalidateQueries({ queryKey: qk.all })`
+on success — every consumer of `useFiles` / `useFileStats` re-fetches lazily.
+
+**Add a new endpoint** — three places to touch:
+1. `services/api/app/runtime/<router>.py` — FastAPI route
+2. `apps/web/src/lib/api-client.ts` — typed fetch wrapper
+3. `apps/web/src/lib/queries.ts` — `useQuery` / `useMutation` hook + entry in `qk`
+
+Defaults (in `apps/web/src/lib/query-client.tsx`):
+- `staleTime: 30s` — file lists / stats don't change second-to-second
+- `retry: 1` for transient errors; never retry 4xx (won't get better)
+- `refetchOnWindowFocus`: on (TanStack default) — dashboard self-heals
+  when the user comes back to the tab
