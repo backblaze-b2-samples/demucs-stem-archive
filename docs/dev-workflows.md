@@ -44,10 +44,10 @@ Engineering workflows for this repo.
 ## CI
 
 GitHub Actions installs Python dependencies from `services/api/requirements.txt`
-and runs backend tests first. Frontend checks use pnpm from the repository root:
-`pnpm install --frozen-lockfile` followed by `pnpm typecheck`, so workspace
-dependencies such as `@demucs-stem-archive/shared` resolve through the monorepo
-lockfile.
+and runs backend tests first. Frontend checks use Node 20 with pnpm 10 from the
+repository root: `pnpm install --frozen-lockfile` followed by `pnpm typecheck`,
+so workspace dependencies such as `@demucs-stem-archive/shared` resolve through
+the monorepo lockfile.
 
 ## Demucs / backend setup
 
