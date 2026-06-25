@@ -1,0 +1,67 @@
+from datetime import UTC, datetime, timedelta
+
+import pytest
+
+from app.repo import b2_client
+
+
+def _object(key: str, age_minutes: int) -> dict:
+    return {
+        "Key": key,
+        "Size": 10,
+        "LastModified": datetime.now(UTC) - timedelta(minutes=age_minutes),
+    }
+
+
+def test_list_files_paginates_until_s3_listing_is_complete(monkeypatch):
+    class FakeS3Client:
+        def __init__(self):
+            self.calls: list[dict] = []
+
+        def list_objects_v2(self, **kwargs):
+            self.calls.append(kwargs.copy())
+            if len(self.calls) == 1:
+                return {
+                    "IsTruncated": True,
+                    "NextContinuationToken": "page-2",
+                    "Contents": [
+                        _object("tracks/a/original/a.wav", age_minutes=30),
+                    ],
+                }
+            return {
+                "IsTruncated": False,
+                "Contents": [
+                    _object("tracks/b/original/b.wav", age_minutes=10),
+                    _object("tracks/c/original/c.wav", age_minutes=20),
+                ],
+            }
+
+    fake_client = FakeS3Client()
+    monkeypatch.setattr(b2_client, "get_s3_client", lambda: fake_client)
+    monkeypatch.setattr(b2_client.settings, "b2_bucket_name", "test-bucket")
+
+    files = b2_client.list_files(prefix="tracks/", max_keys=2)
+
+    assert [f.key for f in files] == [
+        "tracks/b/original/b.wav",
+        "tracks/c/original/c.wav",
+        "tracks/a/original/a.wav",
+    ]
+    assert fake_client.calls == [
+        {
+            "Bucket": "test-bucket",
+            "Prefix": "tracks/",
+            "MaxKeys": 2,
+        },
+        {
+            "Bucket": "test-bucket",
+            "Prefix": "tracks/",
+            "MaxKeys": 2,
+            "ContinuationToken": "page-2",
+        },
+    ]
+
+
+def test_list_files_rejects_invalid_page_size():
+    with pytest.raises(ValueError, match="max_keys must be at least 1"):
+        b2_client.list_files(max_keys=0)

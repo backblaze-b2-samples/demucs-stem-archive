@@ -102,19 +102,47 @@ def upload_file(
     )
 
 
+def _list_objects(
+    *,
+    prefix: str = "",
+    max_keys: int = 1000,
+    failure_message: str,
+) -> list[dict]:
+    """Return every S3 object under prefix, following continuation tokens."""
+    if max_keys < 1:
+        raise ValueError("max_keys must be at least 1")
+
+    client = get_s3_client()
+    contents: list[dict] = []
+    kwargs: dict = {
+        "Bucket": settings.b2_bucket_name,
+        "Prefix": prefix,
+        "MaxKeys": max_keys,
+    }
+    try:
+        while True:
+            response = client.list_objects_v2(**kwargs)
+            contents.extend(response.get("Contents", []))
+            if not response.get("IsTruncated"):
+                return contents
+            token = response.get("NextContinuationToken")
+            if not token:
+                raise RuntimeError(
+                    f"{failure_message}: missing continuation token"
+                )
+            kwargs["ContinuationToken"] = token
+    except ClientError as e:
+        raise RuntimeError(f"{failure_message}: {e}") from e
+
+
 def list_files(prefix: str = "", max_keys: int = 1000) -> list[FileMetadata]:
     """List files from B2. Raises RuntimeError on S3 failure."""
-    client = get_s3_client()
-    try:
-        response = client.list_objects_v2(
-            Bucket=settings.b2_bucket_name,
-            Prefix=prefix,
-            MaxKeys=max_keys,
-        )
-    except ClientError as e:
-        raise RuntimeError(f"B2 list failed: {e}") from e
     files: list[FileMetadata] = []
-    for obj in response.get("Contents", []):
+    for obj in _list_objects(
+        prefix=prefix,
+        max_keys=max_keys,
+        failure_message="B2 list failed",
+    ):
         folder, filename = _split_key(obj["Key"])
         files.append(
             FileMetadata(
@@ -196,18 +224,7 @@ def get_upload_stats() -> dict:
 
     Raises RuntimeError on S3 failure.
     """
-    client = get_s3_client()
-    contents: list[dict] = []
-    kwargs: dict = {"Bucket": settings.b2_bucket_name, "MaxKeys": 1000}
-    try:
-        while True:
-            response = client.list_objects_v2(**kwargs)
-            contents.extend(response.get("Contents", []))
-            if not response.get("IsTruncated"):
-                break
-            kwargs["ContinuationToken"] = response["NextContinuationToken"]
-    except ClientError as e:
-        raise RuntimeError(f"B2 stats query failed: {e}") from e
+    contents = _list_objects(failure_message="B2 stats query failed")
 
     total_size = sum(obj["Size"] for obj in contents)
     today = datetime.now(UTC).date()
