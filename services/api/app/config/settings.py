@@ -1,5 +1,6 @@
 import re
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 B2_REGION_RE = re.compile(r"^[a-z]{2}(?:-[a-z]+)+-\d{3}$")
@@ -57,6 +58,13 @@ class Settings(BaseSettings):
         "env_file_encoding": "utf-8",
         "extra": "ignore",
     }
+
+    @field_validator("b2_region")
+    @classmethod
+    def validate_region(cls, value: str) -> str:
+        if value:
+            return validate_b2_region(value)
+        return value
 
     @property
     def cors_origins(self) -> list[str]:

@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from app.config.settings import Settings
 from app.repo import b2_client
@@ -81,26 +82,18 @@ def test_b2_region_rejects_url_metacharacters(
             "B2_BUCKET_NAME=stem-archive",
         ],
     )
-    settings = Settings(_env_file=env_file)
-
-    with pytest.raises(ValueError, match="B2_REGION"):
-        _ = settings.s3_endpoint
+    with pytest.raises(ValidationError, match="B2_REGION"):
+        Settings(_env_file=env_file)
 
 
-def test_invalid_b2_region_blocks_boto3_client_creation(
-    monkeypatch, tmp_path
-):
+def test_invalid_b2_region_blocks_boto3_client_creation(monkeypatch):
     _clear_b2_env(monkeypatch)
-    env_file = _write_env(
-        tmp_path,
-        [
-            "B2_REGION=attacker.example/steal",
-            "B2_APPLICATION_KEY_ID=key-id",
-            "B2_APPLICATION_KEY=application-key",
-            "B2_BUCKET_NAME=stem-archive",
-        ],
+    settings = Settings.model_construct(
+        b2_region="attacker.example/steal",
+        b2_application_key_id="key-id",
+        b2_application_key="application-key",
+        b2_bucket_name="stem-archive",
     )
-    settings = Settings(_env_file=env_file)
 
     b2_client.get_s3_client.cache_clear()
     monkeypatch.setattr(b2_client, "settings", settings)
@@ -110,7 +103,7 @@ def test_invalid_b2_region_blocks_boto3_client_creation(
         lambda *_, **__: pytest.fail("boto3 client should not be created"),
     )
 
-    with pytest.raises(ValueError, match="B2_REGION"):
+    with pytest.raises(b2_client.B2ConfigurationError, match="B2_REGION"):
         b2_client.get_s3_client()
 
     b2_client.get_s3_client.cache_clear()
@@ -118,21 +111,17 @@ def test_invalid_b2_region_blocks_boto3_client_creation(
 
 @pytest.mark.asyncio
 async def test_lifespan_rejects_invalid_b2_region_before_ready(
-    monkeypatch, tmp_path
+    monkeypatch,
 ):
     import main as api_main
 
     _clear_b2_env(monkeypatch)
-    env_file = _write_env(
-        tmp_path,
-        [
-            "B2_REGION=attacker.example/steal",
-            "B2_APPLICATION_KEY_ID=key-id",
-            "B2_APPLICATION_KEY=application-key",
-            "B2_BUCKET_NAME=stem-archive",
-        ],
+    settings = Settings.model_construct(
+        b2_region="attacker.example/steal",
+        b2_application_key_id="key-id",
+        b2_application_key="application-key",
+        b2_bucket_name="stem-archive",
     )
-    settings = Settings(_env_file=env_file)
 
     monkeypatch.setattr(api_main, "settings", settings)
 
@@ -163,7 +152,7 @@ def test_missing_b2_region_blocks_boto3_client_creation(
         lambda *_, **__: pytest.fail("boto3 client should not be created"),
     )
 
-    with pytest.raises(RuntimeError, match="B2_REGION"):
+    with pytest.raises(b2_client.B2ConfigurationError, match="B2_REGION"):
         b2_client.get_s3_client()
 
     b2_client.get_s3_client.cache_clear()

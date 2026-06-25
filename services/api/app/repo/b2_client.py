@@ -15,6 +15,10 @@ from app.types.formatting import humanize_bytes
 SAMPLE_USER_AGENT = "b2ai-demucs-stem-archive (backblaze-b2-samples)"
 
 
+class B2ConfigurationError(RuntimeError):
+    """Raised when B2 settings are incomplete or malformed."""
+
+
 def _guess_content_type(key: str) -> str:
     mime, _ = mimetypes.guess_type(key)
     return mime or "application/octet-stream"
@@ -38,9 +42,12 @@ def _public_url(key: str) -> str | None:
 
 @functools.lru_cache(maxsize=1)
 def get_s3_client():
-    endpoint_url = settings.s3_endpoint
+    try:
+        endpoint_url = settings.s3_endpoint
+    except ValueError as exc:
+        raise B2ConfigurationError(f"Invalid B2 configuration: {exc}") from exc
     if not endpoint_url:
-        raise RuntimeError(
+        raise B2ConfigurationError(
             "B2_REGION is required before creating the B2 S3 client."
         )
     return boto3.client(
