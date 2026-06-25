@@ -37,18 +37,23 @@ jobs:
             echo "No tests found — skipping. See backblaze-labs/demand-side-ai#195 for test scaffolding work."
           fi
 
+      - name: Set up pnpm
+        if: ${{ hashFiles('apps/web/package.json') != '' }}
+        uses: pnpm/action-setup@v4
+        with:
+          version: "11.1.0"
+
       - name: Set up Node
         if: ${{ hashFiles('apps/web/package.json') != '' }}
         uses: actions/setup-node@v4
         with:
           node-version: "20"
+          cache: "pnpm"
 
       - name: Install frontend dependencies
         if: ${{ hashFiles('apps/web/package.json') != '' }}
-        working-directory: apps/web
-        run: npm install
+        run: pnpm install --frozen-lockfile
 
       - name: Typecheck frontend
         if: ${{ hashFiles('apps/web/package.json') != '' }}
-        working-directory: apps/web
-        run: npm run typecheck
+        run: pnpm typecheck
