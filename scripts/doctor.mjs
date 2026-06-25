@@ -39,7 +39,9 @@ const PLACEHOLDERS = new Set([
   "your-bucket-name",
   "your_region",
 ]);
-const B2_REGION_PATTERN = /^[a-z]{2}(?:-[a-z]+)+-\d{3}$/;
+// B2_REGION format is validated by API startup in settings.py. Keep doctor
+// limited to presence/placeholder checks so there is no duplicate regex
+// contract to drift.
 
 // Only Next.js: `pnpm dev` self-heals the API side via scripts/pick-port.mjs,
 // so warning about 8000 here would just duplicate dev.sh's own banner.
@@ -186,16 +188,6 @@ function checkEnv() {
     fail(
       `.env still has placeholder values: ${placeholders.join(", ")}`,
       "Edit .env and replace placeholders with your real B2 credentials (https://secure.backblaze.com/app_keys.htm?utm_source=github&utm_medium=referral&utm_campaign=ai_artifacts&utm_content=b2ai-demucs-stem-archive)",
-    );
-  }
-  if (
-    env.B2_REGION &&
-    !PLACEHOLDERS.has(env.B2_REGION) &&
-    !B2_REGION_PATTERN.test(env.B2_REGION)
-  ) {
-    fail(
-      "B2_REGION is invalid",
-      "Use a Backblaze region value with only lowercase letters, hyphens, and a three-digit shard; do not include URL metacharacters.",
     );
   }
 }
