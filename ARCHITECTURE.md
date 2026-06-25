@@ -106,9 +106,9 @@ a time).
 | Health | `head_bucket` | repo `check_connectivity` |
 
 - No b2-native API anywhere. boto3 confined to `repo/` (enforced by `test_boto3_only_in_repo`).
-- Custom user-agent `user_agent_extra="b2ai-demucs-stem-archive"` on the S3 client.
-- The S3 endpoint is built from `B2_REGION` (`https://s3.{region}.backblazeb2.com`),
-  with an optional explicit `B2_ENDPOINT` override. No region string is hardcoded in source.
+- Custom user-agent `user_agent_extra="b2ai-demucs-stem-archive (backblaze-b2-samples)"` on the S3 client.
+- The S3 endpoint is built from `B2_REGION` (`https://s3.{region}.backblazeb2.com`).
+  No region string or alternate endpoint env var is hardcoded in source.
 
 ## Trust Boundaries
 

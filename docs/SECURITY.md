@@ -6,7 +6,9 @@ Security principles and implementation for the demucs-stem-archive.
 ## Trust Boundaries
 
 - **Frontend -> API**: CORS-restricted to configured origins, scoped to `GET/POST/DELETE/OPTIONS`
-- **API -> B2**: Authenticated via `B2_APPLICATION_KEY_ID` + `B2_APPLICATION_KEY`, signature v4
+- **API -> B2**: Authenticated via `B2_APPLICATION_KEY_ID` +
+  `B2_APPLICATION_KEY`, signature v4, derived endpoint from `B2_REGION`, and
+  `user_agent_extra="b2ai-demucs-stem-archive (backblaze-b2-samples)"`
 - **API -> Demucs subprocess**: fixed argv, no shell; only app-controlled temp paths are passed
 - **Client -> B2**: Presigned URLs for stream/download (10-min expiry, `Content-Disposition: attachment`)
 
