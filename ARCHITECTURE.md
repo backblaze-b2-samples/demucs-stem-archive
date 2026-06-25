@@ -1,4 +1,4 @@
-<!-- last_verified: 2026-06-18 -->
+<!-- last_verified: 2026-06-25 -->
 # Architecture
 
 ## Components
@@ -109,6 +109,9 @@ a time).
 - Custom user-agent `user_agent_extra="b2ai-demucs-stem-archive (backblaze-b2-samples)"` on the S3 client.
 - The S3 endpoint is built from `B2_REGION` (`https://s3.{region}.backblazeb2.com`).
   No region string or alternate endpoint env var is hardcoded in source.
+- Migration note: `B2_ENDPOINT` is no longer supported. Older `.env` files
+  should remove it and set `B2_REGION`; the S3 endpoint is derived exclusively
+  from the region to avoid endpoint/region drift.
 
 ## Trust Boundaries
 

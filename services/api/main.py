@@ -70,6 +70,12 @@ async def lifespan(_app: "FastAPI"):
             + ", ".join(placeholders)
             + f". Edit {REPO_ROOT_ENV} with your real B2 credentials and restart."
         )
+
+    try:
+        _ = settings.s3_endpoint
+    except ValueError as exc:
+        raise RuntimeError(f"Invalid B2 configuration: {exc}") from exc
+
     yield
 
 # --- Structured JSON logging ---

@@ -15,11 +15,11 @@ Make the sample pass the mandatory B2 quality-keeper standards:
 
 1. Remove the non-standard endpoint env override and derive the S3 endpoint
    strictly from `B2_REGION`.
-2. Validate the region before creating a boto3 client so malformed env values
-   cannot become outbound endpoint URLs.
+2. Validate the region during API startup and before creating a boto3 client so
+   malformed env values cannot become outbound endpoint URLs.
 3. Update the boto3 user agent to include the Backblaze sample-suite marker.
 4. Add focused backend tests for env parsing, endpoint derivation, region
    validation, public URL normalization, and S3 client construction.
-5. Update architecture/security/setup docs to match the standardized B2
-   behavior.
+5. Update architecture/security/setup docs with the standardized B2 behavior
+   and the `B2_ENDPOINT` removal migration note.
 6. Run backend lint/tests, structure checks, and frontend lint.

@@ -116,6 +116,31 @@ def test_invalid_b2_region_blocks_boto3_client_creation(
     b2_client.get_s3_client.cache_clear()
 
 
+@pytest.mark.asyncio
+async def test_lifespan_rejects_invalid_b2_region_before_ready(
+    monkeypatch, tmp_path
+):
+    import main as api_main
+
+    _clear_b2_env(monkeypatch)
+    env_file = _write_env(
+        tmp_path,
+        [
+            "B2_REGION=attacker.example/steal",
+            "B2_APPLICATION_KEY_ID=key-id",
+            "B2_APPLICATION_KEY=application-key",
+            "B2_BUCKET_NAME=stem-archive",
+        ],
+    )
+    settings = Settings(_env_file=env_file)
+
+    monkeypatch.setattr(api_main, "settings", settings)
+
+    with pytest.raises(RuntimeError, match="Invalid B2 configuration: B2_REGION"):
+        async with api_main.lifespan(api_main.app):
+            pass
+
+
 def test_missing_b2_region_blocks_boto3_client_creation(
     monkeypatch, tmp_path
 ):
@@ -159,11 +184,22 @@ def test_b2_public_url_base_trailing_slash_is_normalized(
         ],
     )
     settings = Settings(_env_file=env_file)
+    captured = {}
+
+    class FakeS3Client:
+        def put_object(self, **kwargs):
+            captured.update(kwargs)
 
     monkeypatch.setattr(b2_client, "settings", settings)
+    monkeypatch.setattr(b2_client, "get_s3_client", lambda: FakeS3Client())
 
+    metadata = b2_client.upload_file(
+        b"audio", "tracks/demo song.mp3", "audio/mpeg"
+    )
+
+    assert captured["Key"] == "tracks/demo song.mp3"
     assert (
-        b2_client._public_url("tracks/demo song.mp3")
+        metadata.url
         == "https://cdn.example/stems/tracks/demo%20song.mp3"
     )
 
