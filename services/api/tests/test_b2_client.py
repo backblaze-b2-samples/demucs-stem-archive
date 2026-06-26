@@ -5,11 +5,14 @@ import pytest
 from app.repo import b2_client
 
 
-def _object(key: str, age_minutes: int) -> dict:
+def _object(
+    key: str, age_minutes: int, last_modified: datetime | None = None
+) -> dict:
     return {
         "Key": key,
         "Size": 10,
-        "LastModified": datetime.now(UTC) - timedelta(minutes=age_minutes),
+        "LastModified": last_modified
+        or datetime.now(UTC) - timedelta(minutes=age_minutes),
     }
 
 
@@ -150,12 +153,19 @@ async def test_files_endpoint_limit_uses_single_bounded_b2_page(
     ]
 
 
-def test_list_files_rejects_invalid_page_size():
+def test_list_files_rejects_invalid_max_keys():
     with pytest.raises(ValueError, match="max_keys must be at least 1"):
         b2_client.list_files(max_keys=0)
 
 
 def test_get_upload_stats_paginates_all_pages(monkeypatch):
+    fixed_now = datetime(2026, 1, 15, 12, 0, tzinfo=UTC)
+
+    class FixedDateTime:
+        @staticmethod
+        def now(_tz):
+            return fixed_now
+
     class FakeS3Client:
         def __init__(self):
             self.calls: list[dict] = []
@@ -167,19 +177,32 @@ def test_get_upload_stats_paginates_all_pages(monkeypatch):
                     "IsTruncated": True,
                     "NextContinuationToken": "page-2",
                     "Contents": [
-                        _object("tracks/a/original/a.wav", age_minutes=0),
+                        _object(
+                            "tracks/a/original/a.wav",
+                            age_minutes=0,
+                            last_modified=fixed_now,
+                        ),
                     ],
                 }
             return {
                 "IsTruncated": False,
                 "Contents": [
-                    _object("tracks/b/stems/vocals.wav", age_minutes=0),
-                    _object("tracks/b/stems/drums.wav", age_minutes=0),
+                    _object(
+                        "tracks/b/stems/vocals.wav",
+                        age_minutes=0,
+                        last_modified=fixed_now,
+                    ),
+                    _object(
+                        "tracks/b/stems/drums.wav",
+                        age_minutes=0,
+                        last_modified=fixed_now,
+                    ),
                 ],
             }
 
     fake_client = FakeS3Client()
     monkeypatch.setattr(b2_client, "get_s3_client", lambda: fake_client)
+    monkeypatch.setattr(b2_client, "datetime", FixedDateTime)
     monkeypatch.setattr(b2_client.settings, "b2_bucket_name", "test-bucket")
 
     stats = b2_client.get_upload_stats()

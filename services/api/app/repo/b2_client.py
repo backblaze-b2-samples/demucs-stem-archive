@@ -9,10 +9,7 @@ from botocore.config import Config
 from botocore.exceptions import ClientError
 
 from app.config import settings
-from app.repo.s3_listing import (
-    B2_STATS_LIST_DEADLINE_SECONDS,
-    list_objects,
-)
+from app.repo.s3_listing import list_objects
 from app.types import FileMetadata
 from app.types.formatting import humanize_bytes
 
@@ -207,7 +204,7 @@ def get_upload_stats() -> dict:
         max_items=None,
         failure_message="B2 stats query failed",
         operation="get_upload_stats",
-        deadline_seconds=B2_STATS_LIST_DEADLINE_SECONDS,
+        deadline_seconds=settings.b2_stats_list_deadline_seconds,
     )
 
     total_size = sum(obj["size"] for obj in contents)

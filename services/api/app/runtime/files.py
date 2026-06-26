@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException
 from app.service.files import (
     FileKeyError,
     FileNotFoundError,
+    StatsUnavailableError,
     get_download_url,
     get_file,
     get_files,
@@ -30,7 +31,10 @@ async def list_files_endpoint(prefix: str = "", limit: int = 100):
 
 @router.get("/files/stats", response_model=UploadStats)
 async def stats_endpoint():
-    return get_stats()
+    try:
+        return get_stats()
+    except StatsUnavailableError as e:
+        raise HTTPException(status_code=503, detail=e.detail) from None
 
 
 @router.get("/files/stats/activity", response_model=list[DailyUploadCount])

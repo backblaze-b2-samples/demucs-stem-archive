@@ -7,7 +7,10 @@ from botocore.exceptions import ClientError
 
 logger = logging.getLogger(__name__)
 B2_LIST_PAGE_SIZE = 1000
-B2_STATS_LIST_DEADLINE_SECONDS = 10.0
+
+
+class B2ListingDeadlineError(RuntimeError):
+    """Raised when a paginated B2 listing exceeds its request deadline."""
 
 
 class S3ObjectSummary(TypedDict):
@@ -62,7 +65,9 @@ def list_objects(
                     len(contents),
                     _duration_ms(start),
                 )
-                raise RuntimeError(f"{failure_message}: listing deadline exceeded")
+                raise B2ListingDeadlineError(
+                    f"{failure_message}: listing deadline exceeded"
+                )
 
             remaining = (
                 page_size

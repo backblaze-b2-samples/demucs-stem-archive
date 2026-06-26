@@ -11,6 +11,7 @@ from threading import Lock
 
 from app.config import settings
 from app.repo import (
+    B2ListingDeadlineError,
     delete_file,
     get_file_metadata,
     get_presigned_url,
@@ -98,6 +99,14 @@ class FileNotFoundError(Exception):
         super().__init__(detail)
 
 
+class StatsUnavailableError(Exception):
+    """Raised when upload stats cannot be produced within request limits."""
+
+    def __init__(self, detail: str = "B2 stats query timed out"):
+        self.detail = detail
+        super().__init__(detail)
+
+
 def validate_key(key: str) -> None:
     """Reject empty keys and keys that contain path-traversal patterns."""
     if not key:
@@ -117,7 +126,10 @@ def get_files(prefix: str = "", limit: int = 100) -> list[FileMetadata]:
 
 
 def get_stats() -> UploadStats:
-    data = get_upload_stats()
+    try:
+        data = get_upload_stats()
+    except B2ListingDeadlineError as e:
+        raise StatsUnavailableError() from e
     data["total_downloads"] = get_download_count()
     return UploadStats(**data)
 
