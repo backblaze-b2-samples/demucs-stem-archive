@@ -119,8 +119,8 @@ def get_files(prefix: str = "", limit: int = 100) -> list[FileMetadata]:
     if limit < 1 or limit > FILE_LIST_WINDOW:
         raise ValueError(f"Limit must be between 1 and {FILE_LIST_WINDOW}")
     # S3 list_objects_v2 returns objects in lexicographic order, not by date.
-    # Fetch one bounded server-side window, then sort and slice it.
-    files = list_files(prefix=prefix, max_keys=FILE_LIST_WINDOW)
+    # Fetch only the user-visible request budget, then sort that bounded page.
+    files = list_files(prefix=prefix, max_keys=limit)
     files.sort(key=lambda f: f.uploaded_at, reverse=True)
     return files[:limit]
 

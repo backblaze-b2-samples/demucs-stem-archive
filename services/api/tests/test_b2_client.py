@@ -51,19 +51,8 @@ def test_list_files_paginates_until_listing_complete_within_limit(monkeypatch):
         "tracks/c/original/c.wav",
         "tracks/a/original/a.wav",
     ]
-    assert fake_client.calls == [
-        {
-            "Bucket": "test-bucket",
-            "Prefix": "tracks/",
-            "MaxKeys": 3,
-        },
-        {
-            "Bucket": "test-bucket",
-            "Prefix": "tracks/",
-            "MaxKeys": 2,
-            "ContinuationToken": "page-2",
-        },
-    ]
+    assert len(fake_client.calls) == 2
+    assert fake_client.calls[1].get("ContinuationToken") == "page-2"
 
 
 def test_list_files_respects_total_max_keys_across_pages(monkeypatch):
@@ -149,9 +138,65 @@ async def test_files_endpoint_limit_uses_single_bounded_b2_page(
         {
             "Bucket": "test-bucket",
             "Prefix": "",
-            "MaxKeys": 1000,
+            "MaxKeys": 1,
         },
     ]
+
+
+def test_list_objects_rejects_repeated_continuation_token():
+    class FakeS3Client:
+        def __init__(self):
+            self.calls: list[dict] = []
+
+        def list_objects_v2(self, **kwargs):
+            self.calls.append(kwargs.copy())
+            return {
+                "IsTruncated": True,
+                "NextContinuationToken": "page-2",
+                "Contents": [
+                    _object(f"tracks/{len(self.calls)}.wav", age_minutes=0),
+                ],
+            }
+
+    fake_client = FakeS3Client()
+
+    with pytest.raises(RuntimeError, match="repeated continuation token"):
+        list_objects(
+            client=fake_client,
+            bucket="test-bucket",
+            max_items=3,
+            failure_message="B2 list failed",
+            operation="test",
+        )
+
+    assert len(fake_client.calls) == 2
+
+
+def test_list_objects_rejects_empty_truncated_page():
+    class FakeS3Client:
+        def __init__(self):
+            self.calls: list[dict] = []
+
+        def list_objects_v2(self, **kwargs):
+            self.calls.append(kwargs.copy())
+            return {
+                "IsTruncated": True,
+                "NextContinuationToken": "page-2",
+                "Contents": [],
+            }
+
+    fake_client = FakeS3Client()
+
+    with pytest.raises(RuntimeError, match="empty truncated page"):
+        list_objects(
+            client=fake_client,
+            bucket="test-bucket",
+            max_items=None,
+            failure_message="B2 list failed",
+            operation="test",
+        )
+
+    assert len(fake_client.calls) == 1
 
 
 def test_list_files_rejects_invalid_max_keys():

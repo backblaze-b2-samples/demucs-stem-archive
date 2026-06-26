@@ -52,6 +52,7 @@ def list_objects(
     pages = 0
     contents: list[S3ObjectSummary] = []
     kwargs: dict = {"Bucket": bucket, "Prefix": prefix}
+    seen_tokens: set[str] = set()
     try:
         while True:
             if (
@@ -100,6 +101,15 @@ def list_objects(
                 raise RuntimeError(
                     f"{failure_message}: missing continuation token"
                 )
+            if token in seen_tokens:
+                raise RuntimeError(
+                    f"{failure_message}: repeated continuation token"
+                )
+            if not objects:
+                raise RuntimeError(
+                    f"{failure_message}: empty truncated page"
+                )
+            seen_tokens.add(token)
             kwargs["ContinuationToken"] = token
     except ClientError as e:
         logger.warning(

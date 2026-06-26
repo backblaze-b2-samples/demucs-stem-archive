@@ -27,13 +27,15 @@ async def test_recent_uploads_sorted_newest_first(client, monkeypatch):
     fake_files = [
         _make_file("uploads/alpha.txt", hours_ago=24),  # oldest
         _make_file("uploads/zebra.txt", hours_ago=0),  # newest
-        _make_file("uploads/middle.txt", hours_ago=12),
     ]
-    # Simulate S3 returning in lexicographic order (alpha, middle, zebra)
+    # Simulate S3 returning in lexicographic order (alpha, zebra)
     fake_files.sort(key=lambda f: f.key)
-    monkeypatch.setattr(
-        files_service, "list_files", lambda prefix, max_keys: fake_files
-    )
+
+    def fake_list_files(prefix: str, max_keys: int):
+        assert max_keys == 2
+        return fake_files
+
+    monkeypatch.setattr(files_service, "list_files", fake_list_files)
 
     response = await client.get("/files?limit=2")
     assert response.status_code == 200
@@ -41,26 +43,29 @@ async def test_recent_uploads_sorted_newest_first(client, monkeypatch):
     assert len(data) == 2
     # Newest file should be first even though it's last alphabetically
     assert data[0]["filename"] == "zebra.txt"
-    assert data[1]["filename"] == "middle.txt"
+    assert data[1]["filename"] == "alpha.txt"
 
 
 @pytest.mark.asyncio
 async def test_limit_applied_after_sort(client, monkeypatch):
-    """Limit slices after date sort, not before S3 fetch."""
+    """Limit is sent to B2 and applied after sorting the bounded result."""
     fake_files = [
         _make_file(f"uploads/file{i:03d}.txt", hours_ago=100 - i)
         for i in range(20)
     ]
     # S3 returns lexicographic order
     fake_files.sort(key=lambda f: f.key)
-    monkeypatch.setattr(
-        files_service, "list_files", lambda prefix, max_keys: fake_files
-    )
+
+    def fake_list_files(prefix: str, max_keys: int):
+        assert max_keys == 5
+        return fake_files[:max_keys]
+
+    monkeypatch.setattr(files_service, "list_files", fake_list_files)
 
     response = await client.get("/files?limit=5")
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 5
-    # The 5 most recent by upload time (file019, file018, file017, ...)
-    assert data[0]["filename"] == "file019.txt"
-    assert data[4]["filename"] == "file015.txt"
+    # The 5 returned files are sorted by upload time within the B2 result cap.
+    assert data[0]["filename"] == "file004.txt"
+    assert data[4]["filename"] == "file000.txt"
