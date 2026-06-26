@@ -19,7 +19,7 @@ endpoints for stem streaming and download.
 - `apps/web/src/lib/api-client.ts` — `getFiles()`, `getDownloadUrl()`, `deleteFile()`
 - `services/api/app/runtime/files.py` — HTTP handlers for list, get, download, delete
 - `services/api/app/service/files.py` — business logic, key validation
-- `services/api/app/repo/b2_client.py` — `list_files()` paginates through all `list_objects_v2` pages, `get_file_metadata()`, `get_presigned_url()`, `delete_file()`
+- `services/api/app/repo/b2_client.py` — `list_files()` follows `list_objects_v2` pages only up to the trusted result cap, `get_file_metadata()`, `get_presigned_url()`, `delete_file()`
 
 ## Canonical Files
 - File route handlers: `services/api/app/runtime/files.py`
@@ -32,7 +32,7 @@ endpoints for stem streaming and download.
 - key: string (file key for get/download/delete — no path traversal)
 
 ## Outputs
-- `GET /files` → `FileMetadata[]` (all matching B2 pages collected, sorted most recent first, then limited)
+- `GET /files` → `FileMetadata[]` (B2 listing work is capped by `limit`, then sorted most recent first)
 - `GET /files/{key}` → `FileMetadata`
 - `GET /files/{key}/download` → `{ url: string }` (presigned URL, attachment disposition, 10-min expiry). Increments the `total_downloads` counter exposed on `/files/stats`. The counter is persisted to `services/api/data/download_count.json` (override via `DOWNLOAD_COUNT_FILE` env var) so it survives API restarts.
 - `GET /files/{key}/preview` → `{ url: string }` (presigned URL for inline rendering, 10-min expiry). Does **not** increment the download counter — used by the preview modal for inline audio playback (and reused by the Stem Library for streaming).
@@ -63,7 +63,7 @@ endpoints for stem streaming and download.
 - Loaded: tree view with expand/collapse folders and hover action menus
 
 ## Verification
-- Test files: `services/api/tests/` (no dedicated file browser tests yet)
+- Test files: `services/api/tests/` (including repo-level B2 pagination regression tests)
 - Required cases: list files, empty list, file not found, presigned URL generation, delete success, delete failure
 - Quick verify command: `pnpm test:api`
 - Full verify command: `pnpm lint && pnpm lint:api && pnpm test:api && pnpm check:structure`

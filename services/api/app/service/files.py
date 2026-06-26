@@ -109,8 +109,9 @@ def get_files(prefix: str = "", limit: int = 100) -> list[FileMetadata]:
     if limit < 1 or limit > 1000:
         raise ValueError("Limit must be between 1 and 1000")
     # S3 list_objects_v2 returns objects in lexicographic order, not by date.
-    # Fetch a full batch, sort newest-first, then slice to the requested limit.
-    files = list_files(prefix=prefix, max_keys=1000)
+    # Bound B2 work to the trusted request limit, then sort and slice
+    # defensively in case a repo stub or S3-compatible backend over-returns.
+    files = list_files(prefix=prefix, max_keys=limit)
     files.sort(key=lambda f: f.uploaded_at, reverse=True)
     return files[:limit]
 

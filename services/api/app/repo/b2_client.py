@@ -9,6 +9,10 @@ from botocore.config import Config
 from botocore.exceptions import ClientError
 
 from app.config import settings
+from app.repo.s3_listing import (
+    B2_STATS_LIST_DEADLINE_SECONDS,
+    list_objects,
+)
 from app.types import FileMetadata
 from app.types.formatting import humanize_bytes
 
@@ -102,58 +106,31 @@ def upload_file(
     )
 
 
-def _list_objects(
-    *,
-    prefix: str = "",
-    max_keys: int = 1000,
-    failure_message: str,
-) -> list[dict]:
-    """Return every S3 object under prefix, following continuation tokens."""
+def list_files(prefix: str = "", max_keys: int = 1000) -> list[FileMetadata]:
+    """List up to max_keys files from B2. Raises RuntimeError on S3 failure."""
     if max_keys < 1:
         raise ValueError("max_keys must be at least 1")
 
-    client = get_s3_client()
-    contents: list[dict] = []
-    kwargs: dict = {
-        "Bucket": settings.b2_bucket_name,
-        "Prefix": prefix,
-        "MaxKeys": max_keys,
-    }
-    try:
-        while True:
-            response = client.list_objects_v2(**kwargs)
-            contents.extend(response.get("Contents", []))
-            if not response.get("IsTruncated"):
-                return contents
-            token = response.get("NextContinuationToken")
-            if not token:
-                raise RuntimeError(
-                    f"{failure_message}: missing continuation token"
-                )
-            kwargs["ContinuationToken"] = token
-    except ClientError as e:
-        raise RuntimeError(f"{failure_message}: {e}") from e
-
-
-def list_files(prefix: str = "", max_keys: int = 1000) -> list[FileMetadata]:
-    """List files from B2. Raises RuntimeError on S3 failure."""
     files: list[FileMetadata] = []
-    for obj in _list_objects(
+    for obj in list_objects(
+        client=get_s3_client(),
+        bucket=settings.b2_bucket_name,
         prefix=prefix,
-        max_keys=max_keys,
+        max_items=max_keys,
         failure_message="B2 list failed",
+        operation="list_files",
     ):
-        folder, filename = _split_key(obj["Key"])
+        folder, filename = _split_key(obj["key"])
         files.append(
             FileMetadata(
-                key=obj["Key"],
+                key=obj["key"],
                 filename=filename,
                 folder=folder,
-                size_bytes=obj["Size"],
-                size_human=humanize_bytes(obj["Size"]),
-                content_type=_guess_content_type(obj["Key"]),
-                uploaded_at=obj["LastModified"],
-                url=_public_url(obj["Key"]),
+                size_bytes=obj["size"],
+                size_human=humanize_bytes(obj["size"]),
+                content_type=_guess_content_type(obj["key"]),
+                uploaded_at=obj["last_modified"],
+                url=_public_url(obj["key"]),
             )
         )
     files.sort(key=lambda f: f.uploaded_at, reverse=True)
@@ -224,12 +201,19 @@ def get_upload_stats() -> dict:
 
     Raises RuntimeError on S3 failure.
     """
-    contents = _list_objects(failure_message="B2 stats query failed")
+    contents = list_objects(
+        client=get_s3_client(),
+        bucket=settings.b2_bucket_name,
+        max_items=None,
+        failure_message="B2 stats query failed",
+        operation="get_upload_stats",
+        deadline_seconds=B2_STATS_LIST_DEADLINE_SECONDS,
+    )
 
-    total_size = sum(obj["Size"] for obj in contents)
+    total_size = sum(obj["size"] for obj in contents)
     today = datetime.now(UTC).date()
     uploads_today = sum(
-        1 for obj in contents if obj["LastModified"].date() == today
+        1 for obj in contents if obj["last_modified"].date() == today
     )
     return {
         "total_files": len(contents),
