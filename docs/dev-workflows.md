@@ -1,4 +1,4 @@
-<!-- last_verified: 2026-05-21 -->
+<!-- last_verified: 2026-06-25 -->
 # Dev Workflows
 
 Engineering workflows for this repo.
@@ -40,6 +40,14 @@ Engineering workflows for this repo.
 - [ ] Run full lint + test suite before submitting
 - [ ] Docs updated in the same PR as code changes
 - [ ] Only change files relevant to the task — no drive-by improvements
+
+## CI
+
+GitHub Actions installs Python dependencies from `services/api/requirements.txt`
+and runs backend tests first. Frontend checks use Node 20 with pnpm 10 from the
+repository root: `pnpm install --frozen-lockfile` followed by `pnpm typecheck`,
+so workspace dependencies such as `@demucs-stem-archive/shared` resolve through
+the monorepo lockfile.
 
 ## Demucs / backend setup
 

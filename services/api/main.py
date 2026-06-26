@@ -22,11 +22,10 @@ from app.runtime import files, health, metrics, tracks  # noqa: E402
 
 # --- Startup validation ---
 # Required B2 settings are declared with empty-string defaults so that
-# `Settings()` instantiation (and therefore `from main import app`) never
-# raises during test collection. We instead fail fast at server startup
-# with a human-readable message — uvicorn surfaces this as the first log
-# line, so misconfiguration is obvious within seconds rather than turning
-# into mysterious 500s on the first request.
+# missing configuration does not break `from main import app` during test
+# collection. Non-empty malformed values are validated when Settings is
+# constructed; missing or placeholder values fail fast at server startup
+# with a human-readable message.
 REQUIRED_B2_SETTINGS = (
     ("b2_application_key_id", "B2_APPLICATION_KEY_ID"),
     ("b2_application_key", "B2_APPLICATION_KEY"),
@@ -70,6 +69,12 @@ async def lifespan(_app: "FastAPI"):
             + ", ".join(placeholders)
             + f". Edit {REPO_ROOT_ENV} with your real B2 credentials and restart."
         )
+
+    try:
+        _ = settings.s3_endpoint
+    except ValueError as exc:
+        raise RuntimeError(f"Invalid B2 configuration: {exc}") from exc
+
     yield
 
 # --- Structured JSON logging ---

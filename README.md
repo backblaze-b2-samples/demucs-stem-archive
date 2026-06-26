@@ -105,6 +105,9 @@ and:
 | `B2_REGION` | Bucket region, e.g. `us-west-004` (used to build the S3 endpoint) |
 | `B2_PUBLIC_URL_BASE` | Optional public base URL for objects (leave blank for private buckets) |
 
+> Migrating an older `.env`? `B2_ENDPOINT` is no longer supported. Remove it
+> and set `B2_REGION`; the API derives the S3 endpoint from that region.
+
 > Want a walkthrough? See the docs for
 > [creating a bucket](https://www.backblaze.com/docs/cloud-storage-create-and-manage-buckets?utm_source=github&utm_medium=referral&utm_campaign=ai_artifacts&utm_content=b2ai-demucs-stem-archive)
 > and [creating app keys](https://www.backblaze.com/docs/cloud-storage-create-and-manage-app-keys?utm_source=github&utm_medium=referral&utm_campaign=ai_artifacts&utm_content=b2ai-demucs-stem-archive).
