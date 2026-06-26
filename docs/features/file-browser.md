@@ -19,7 +19,7 @@ endpoints for stem streaming and download.
 - `apps/web/src/lib/api-client.ts` — `getFiles()`, `getDownloadUrl()`, `deleteFile()`
 - `services/api/app/runtime/files.py` — HTTP handlers for list, get, download, delete
 - `services/api/app/service/files.py` — business logic, key validation
-- `services/api/app/repo/b2_client.py` — `list_files()` follows `list_objects_v2` pages only up to the trusted result cap, `get_file_metadata()`, `get_presigned_url()`, `delete_file()`
+- `services/api/app/repo/b2_client.py` — `list_files(max_keys=...)` follows `list_objects_v2` pages up to the caller-supplied result cap; `/files` supplies the 1000-key endpoint window
 
 ## Canonical Files
 - File route handlers: `services/api/app/runtime/files.py`

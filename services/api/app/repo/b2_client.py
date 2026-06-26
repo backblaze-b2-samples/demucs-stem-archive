@@ -196,7 +196,7 @@ def get_presigned_url(
 def get_upload_stats() -> dict:
     """Paginate through all objects and return aggregate stats.
 
-    Raises RuntimeError on S3 failure.
+    Raises B2ListingDeadlineError on deadline expiry, RuntimeError on S3 failure.
     """
     contents = list_objects(
         client=get_s3_client(),
