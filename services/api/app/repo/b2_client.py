@@ -13,6 +13,12 @@ from app.repo.s3_listing import list_objects
 from app.types import FileMetadata
 from app.types.formatting import humanize_bytes
 
+SAMPLE_USER_AGENT = "b2ai-demucs-stem-archive (backblaze-b2-samples)"
+
+
+class B2ConfigurationError(RuntimeError):
+    """Raised when B2 settings are incomplete or malformed."""
+
 
 def _guess_content_type(key: str) -> str:
     mime, _ = mimetypes.guess_type(key)
@@ -29,21 +35,31 @@ def _split_key(key: str) -> tuple[str, str]:
 
 def _public_url(key: str) -> str | None:
     """Build a public URL for an object key, percent-encoding the path."""
-    if not settings.b2_public_url_base:
+    base_url = settings.b2_public_url_base.rstrip("/")
+    if not base_url:
         return None
-    return f"{settings.b2_public_url_base}/{quote(key, safe='/')}"
+    return f"{base_url}/{quote(key, safe='/')}"
 
 
 @functools.lru_cache(maxsize=1)
 def get_s3_client():
+    try:
+        endpoint_url = settings.s3_endpoint
+    except ValueError as exc:
+        raise B2ConfigurationError(f"Invalid B2 configuration: {exc}") from exc
+    if not endpoint_url:
+        raise B2ConfigurationError(
+            "B2_REGION is required before creating the B2 S3 client."
+        )
     return boto3.client(
         "s3",
-        endpoint_url=settings.s3_endpoint,
+        endpoint_url=endpoint_url,
+        region_name=settings.b2_region or None,
         aws_access_key_id=settings.b2_application_key_id,
         aws_secret_access_key=settings.b2_application_key,
         config=Config(
             signature_version="s3v4",
-            user_agent_extra="b2ai-demucs-stem-archive",
+            user_agent_extra=SAMPLE_USER_AGENT,
         ),
     )
 

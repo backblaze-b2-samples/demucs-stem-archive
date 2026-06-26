@@ -1,17 +1,28 @@
+import re
+
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
+
+B2_REGION_RE = re.compile(r"^[a-z]{2}(?:-[a-z]+)+-\d{3}$")
+
+
+def validate_b2_region(region: str) -> str:
+    if not B2_REGION_RE.fullmatch(region):
+        raise ValueError(
+            "B2_REGION must match Backblaze's region format: lowercase "
+            "letters and hyphens followed by a three-digit shard."
+        )
+    return region
 
 
 class Settings(BaseSettings):
     # --- Backblaze B2 (S3-compatible) ---
+    # Region drives the default S3 endpoint. Never hardcode a region or
+    # configure a separate endpoint alias in source.
+    b2_region: str = ""
     b2_application_key_id: str = ""
     b2_application_key: str = ""
     b2_bucket_name: str = ""
-    # Region drives the default S3 endpoint. Never hardcode a region in
-    # source — it always comes from the environment.
-    b2_region: str = ""
-    # Optional explicit endpoint override. When empty, the S3 client builds
-    # `https://s3.{b2_region}.backblazeb2.com` from b2_region.
-    b2_endpoint: str = ""
     b2_public_url_base: str = ""
 
     api_port: int = 8000
@@ -44,20 +55,30 @@ class Settings(BaseSettings):
     # Full-bucket stats aggregation is request-path work, so bound page scans.
     b2_stats_list_deadline_seconds: float = 10.0
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+    model_config = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "extra": "ignore",
+    }
+
+    @field_validator("b2_region")
+    @classmethod
+    def validate_region(cls, value: str) -> str:
+        if value:
+            return validate_b2_region(value)
+        return value
 
     @property
     def cors_origins(self) -> list[str]:
         return [o.strip() for o in self.api_cors_origins.split(",")]
 
     @property
-    def s3_endpoint(self) -> str:
-        """Resolved S3 endpoint URL. Explicit override wins; otherwise the
-        URL is derived from the region so no endpoint/region drift is
-        possible."""
-        if self.b2_endpoint:
-            return self.b2_endpoint
-        return f"https://s3.{self.b2_region}.backblazeb2.com"
+    def s3_endpoint(self) -> str | None:
+        """Resolved B2 S3 endpoint URL derived from the configured region."""
+        if not self.b2_region:
+            return None
+        region = validate_b2_region(self.b2_region)
+        return f"https://s3.{region}.backblazeb2.com"
 
 
 settings = Settings()

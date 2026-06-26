@@ -39,6 +39,9 @@ const PLACEHOLDERS = new Set([
   "your-bucket-name",
   "your_region",
 ]);
+// B2_REGION format is validated by API startup in settings.py. Keep doctor
+// limited to presence/placeholder checks so there is no duplicate regex
+// contract to drift.
 
 // Only Next.js: `pnpm dev` self-heals the API side via scripts/pick-port.mjs,
 // so warning about 8000 here would just duplicate dev.sh's own banner.
