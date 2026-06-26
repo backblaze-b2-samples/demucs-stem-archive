@@ -47,8 +47,14 @@ jobs:
         if: ${{ hashFiles('apps/web/package.json') != '' }}
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "pnpm"
+
+      - name: Enable pnpm
+        if: ${{ hashFiles('apps/web/package.json') != '' }}
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.33.2 --activate
 
       - name: Install frontend dependencies
         if: ${{ hashFiles('apps/web/package.json') != '' }}
@@ -56,4 +62,4 @@ jobs:
 
       - name: Typecheck frontend
         if: ${{ hashFiles('apps/web/package.json') != '' }}
-        run: pnpm typecheck
+        run: pnpm --filter @demucs-stem-archive/web typecheck

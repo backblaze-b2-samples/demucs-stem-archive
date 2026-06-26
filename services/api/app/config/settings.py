@@ -52,6 +52,8 @@ class Settings(BaseSettings):
     # Small durable counters (downloads, etc). Point at a persistent
     # volume in production if you care about surviving restarts.
     download_count_file: str = "data/download_count.json"
+    # Full-bucket stats aggregation is request-path work, so bound page scans.
+    b2_stats_list_deadline_seconds: float = 10.0
 
     model_config = {
         "env_file": ".env",

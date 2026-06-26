@@ -11,6 +11,7 @@ from threading import Lock
 
 from app.config import settings
 from app.repo import (
+    B2ListingDeadlineError,
     delete_file,
     get_file_metadata,
     get_presigned_url,
@@ -24,6 +25,7 @@ logger = logging.getLogger(__name__)
 
 _DANGEROUS_KEY_RE = re.compile(r"(\.\./|/\.\.|\\|%2e%2e|%00|\x00)")
 _download_lock = Lock()
+FILE_LIST_WINDOW = 1000
 
 
 def _counter_path() -> Path:
@@ -97,6 +99,14 @@ class FileNotFoundError(Exception):
         super().__init__(detail)
 
 
+class StatsUnavailableError(Exception):
+    """Raised when upload stats cannot be produced within request limits."""
+
+    def __init__(self, detail: str = "B2 stats query timed out"):
+        self.detail = detail
+        super().__init__(detail)
+
+
 def validate_key(key: str) -> None:
     """Reject empty keys and keys that contain path-traversal patterns."""
     if not key:
@@ -106,17 +116,20 @@ def validate_key(key: str) -> None:
 
 
 def get_files(prefix: str = "", limit: int = 100) -> list[FileMetadata]:
-    if limit < 1 or limit > 1000:
-        raise ValueError("Limit must be between 1 and 1000")
+    if limit < 1 or limit > FILE_LIST_WINDOW:
+        raise ValueError(f"Limit must be between 1 and {FILE_LIST_WINDOW}")
     # S3 list_objects_v2 returns objects in lexicographic order, not by date.
-    # Fetch a full batch, sort newest-first, then slice to the requested limit.
-    files = list_files(prefix=prefix, max_keys=1000)
+    # Fetch one bounded server-side window, then sort and slice it.
+    files = list_files(prefix=prefix, max_keys=FILE_LIST_WINDOW)
     files.sort(key=lambda f: f.uploaded_at, reverse=True)
     return files[:limit]
 
 
 def get_stats() -> UploadStats:
-    data = get_upload_stats()
+    try:
+        data = get_upload_stats()
+    except B2ListingDeadlineError as e:
+        raise StatsUnavailableError() from e
     data["total_downloads"] = get_download_count()
     return UploadStats(**data)
 
@@ -158,7 +171,7 @@ def remove_file(key: str) -> None:
 
 def get_upload_activity(days: int = 7) -> list[DailyUploadCount]:
     """Return daily upload counts for the last N days."""
-    files = list_files(prefix="", max_keys=1000)
+    files = list_files(prefix="", max_keys=FILE_LIST_WINDOW)
     today = datetime.now(UTC).date()
     cutoff = today - timedelta(days=days - 1)
 

@@ -8,8 +8,10 @@ from app.repo.b2_client import (
     list_files,
     upload_file,
 )
+from app.repo.s3_listing import B2ListingDeadlineError
 
 __all__ = [
+    "B2ListingDeadlineError",
     "check_connectivity",
     "delete_file",
     "download_file",

@@ -1,4 +1,4 @@
-<!-- last_verified: 2026-04-22 -->
+<!-- last_verified: 2026-06-25 -->
 # Feature: File Browser
 
 ## Purpose
@@ -19,7 +19,7 @@ endpoints for stem streaming and download.
 - `apps/web/src/lib/api-client.ts` — `getFiles()`, `getDownloadUrl()`, `deleteFile()`
 - `services/api/app/runtime/files.py` — HTTP handlers for list, get, download, delete
 - `services/api/app/service/files.py` — business logic, key validation
-- `services/api/app/repo/b2_client.py` — `list_files()`, `get_file_metadata()`, `get_presigned_url()`, `delete_file()`
+- `services/api/app/repo/b2_client.py` — `list_files(max_keys=...)` follows `list_objects_v2` pages up to the caller-supplied result cap; `/files` supplies the 1000-key endpoint window
 
 ## Canonical Files
 - File route handlers: `services/api/app/runtime/files.py`
@@ -32,7 +32,8 @@ endpoints for stem streaming and download.
 - key: string (file key for get/download/delete — no path traversal)
 
 ## Outputs
-- `GET /files` → `FileMetadata[]` (sorted most recent first)
+- `GET /files` → `FileMetadata[]` (one bounded B2 listing window, up to 1000 keys, sorted most recent first, then sliced to `limit`; not globally newest-first once a matching prefix exceeds that window)
+- `GET /files/stats` → `UploadStats` (full-bucket aggregate with a configurable B2 listing deadline via `B2_STATS_LIST_DEADLINE_SECONDS`)
 - `GET /files/{key}` → `FileMetadata`
 - `GET /files/{key}/download` → `{ url: string }` (presigned URL, attachment disposition, 10-min expiry). Increments the `total_downloads` counter exposed on `/files/stats`. The counter is persisted to `services/api/data/download_count.json` (override via `DOWNLOAD_COUNT_FILE` env var) so it survives API restarts.
 - `GET /files/{key}/preview` → `{ url: string }` (presigned URL for inline rendering, 10-min expiry). Does **not** increment the download counter — used by the preview modal for inline audio playback (and reused by the Stem Library for streaming).
@@ -53,6 +54,7 @@ endpoints for stem streaming and download.
 - File not found (deleted externally) → API returns 404
 - Invalid file key (traversal attempt, empty key) → API returns 400
 - B2 unreachable → API error, toast notification
+- Stats aggregate exceeds its B2 listing deadline → API returns 503
 - Empty bucket → "No files found" message with upload prompt
 - Delete failure → API returns 500, toast error
 
@@ -63,7 +65,7 @@ endpoints for stem streaming and download.
 - Loaded: tree view with expand/collapse folders and hover action menus
 
 ## Verification
-- Test files: `services/api/tests/` (no dedicated file browser tests yet)
+- Test files: `services/api/tests/` (including repo-level B2 pagination regression tests)
 - Required cases: list files, empty list, file not found, presigned URL generation, delete success, delete failure
 - Quick verify command: `pnpm test:api`
 - Full verify command: `pnpm lint && pnpm lint:api && pnpm test:api && pnpm check:structure`

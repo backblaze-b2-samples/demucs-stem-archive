@@ -2,6 +2,7 @@
 
 import pytest
 
+from app.repo import B2ListingDeadlineError
 from app.service import files as files_service
 
 
@@ -34,6 +35,21 @@ async def test_stats_b2_failure_returns_500(client, monkeypatch):
     response = await client.get("/files/stats")
     assert response.status_code == 500
     assert response.json()["detail"] == "Internal server error"
+
+
+@pytest.mark.asyncio
+async def test_stats_timeout_returns_503(client, monkeypatch):
+    """Stats endpoint returns 503 when B2 listing exceeds its deadline."""
+
+    def timeout():
+        raise B2ListingDeadlineError("B2 stats query failed")
+
+    monkeypatch.setattr(files_service, "get_upload_stats", timeout)
+
+    response = await client.get("/files/stats")
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "B2 stats query timed out"
 
 
 @pytest.mark.asyncio
