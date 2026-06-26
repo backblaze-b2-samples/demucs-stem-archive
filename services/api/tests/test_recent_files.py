@@ -32,7 +32,7 @@ async def test_recent_uploads_sorted_newest_first(client, monkeypatch):
     fake_files.sort(key=lambda f: f.key)
 
     def fake_list_files(prefix: str, max_keys: int):
-        assert max_keys == 2
+        assert max_keys == files_service.FILE_LIST_WINDOW
         return fake_files
 
     monkeypatch.setattr(files_service, "list_files", fake_list_files)
@@ -57,8 +57,8 @@ async def test_limit_applied_after_sort(client, monkeypatch):
     fake_files.sort(key=lambda f: f.key)
 
     def fake_list_files(prefix: str, max_keys: int):
-        assert max_keys == 5
-        return fake_files[:max_keys]
+        assert max_keys == files_service.FILE_LIST_WINDOW
+        return fake_files
 
     monkeypatch.setattr(files_service, "list_files", fake_list_files)
 
@@ -66,6 +66,6 @@ async def test_limit_applied_after_sort(client, monkeypatch):
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 5
-    # The 5 returned files are sorted by upload time within the B2 result cap.
-    assert data[0]["filename"] == "file004.txt"
-    assert data[4]["filename"] == "file000.txt"
+    # The 5 most recent by upload time within the B2 result cap.
+    assert data[0]["filename"] == "file019.txt"
+    assert data[4]["filename"] == "file015.txt"

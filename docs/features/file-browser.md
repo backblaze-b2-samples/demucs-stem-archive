@@ -19,7 +19,7 @@ endpoints for stem streaming and download.
 - `apps/web/src/lib/api-client.ts` — `getFiles()`, `getDownloadUrl()`, `deleteFile()`
 - `services/api/app/runtime/files.py` — HTTP handlers for list, get, download, delete
 - `services/api/app/service/files.py` — business logic, key validation
-- `services/api/app/repo/b2_client.py` — `list_files(max_keys=...)` follows `list_objects_v2` pages up to the caller-supplied result cap; `/files` supplies the user-visible endpoint limit as that cap
+- `services/api/app/repo/b2_client.py` — `list_files(max_keys=...)` follows `list_objects_v2` pages up to the caller-supplied result cap; `/files` supplies the 1000-key endpoint window
 
 ## Canonical Files
 - File route handlers: `services/api/app/runtime/files.py`
@@ -32,7 +32,7 @@ endpoints for stem streaming and download.
 - key: string (file key for get/download/delete — no path traversal)
 
 ## Outputs
-- `GET /files` → `FileMetadata[]` (one bounded B2 listing up to the requested `limit`, sorted most recent first within that limited S3 result window; not globally newest-first once a matching prefix exceeds that limit)
+- `GET /files` → `FileMetadata[]` (one bounded B2 listing window, up to 1000 keys, sorted most recent first, then sliced to `limit`; not globally newest-first once a matching prefix exceeds that window)
 - `GET /files/stats` → `UploadStats` (full-bucket aggregate with a configurable B2 listing deadline via `B2_STATS_LIST_DEADLINE_SECONDS`)
 - `GET /files/{key}` → `FileMetadata`
 - `GET /files/{key}/download` → `{ url: string }` (presigned URL, attachment disposition, 10-min expiry). Increments the `total_downloads` counter exposed on `/files/stats`. The counter is persisted to `services/api/data/download_count.json` (override via `DOWNLOAD_COUNT_FILE` env var) so it survives API restarts.

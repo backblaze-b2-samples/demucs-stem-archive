@@ -138,7 +138,7 @@ async def test_files_endpoint_limit_uses_single_bounded_b2_page(
         {
             "Bucket": "test-bucket",
             "Prefix": "",
-            "MaxKeys": 1,
+            "MaxKeys": 1000,
         },
     ]
 
