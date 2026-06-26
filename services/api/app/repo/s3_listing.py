@@ -47,6 +47,8 @@ def list_objects(
         raise ValueError("max_items must be at least 1")
     if page_size < 1 or page_size > B2_LIST_PAGE_SIZE:
         raise ValueError(f"page_size must be between 1 and {B2_LIST_PAGE_SIZE}")
+    if deadline_seconds is not None and deadline_seconds <= 0:
+        raise ValueError("deadline_seconds must be greater than 0")
 
     start = time.monotonic()
     pages = 0

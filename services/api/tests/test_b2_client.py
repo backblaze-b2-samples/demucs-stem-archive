@@ -216,6 +216,20 @@ def test_list_objects_rejects_oversized_page_size():
         )
 
 
+def test_list_objects_rejects_invalid_deadline():
+    with pytest.raises(
+        ValueError, match="deadline_seconds must be greater than 0"
+    ):
+        list_objects(
+            client=None,
+            bucket="test-bucket",
+            max_items=1,
+            failure_message="B2 list failed",
+            operation="test",
+            deadline_seconds=-1,
+        )
+
+
 def test_get_upload_stats_paginates_all_pages(monkeypatch):
     fixed_now = datetime(2026, 1, 15, 12, 0, tzinfo=UTC)
 
