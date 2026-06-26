@@ -112,7 +112,9 @@ def test_list_files_respects_total_max_keys_across_pages(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_files_endpoint_limit_bounds_b2_listing_work(client, monkeypatch):
+async def test_files_endpoint_limit_uses_single_bounded_b2_page(
+    client, monkeypatch
+):
     class FakeS3Client:
         def __init__(self):
             self.calls: list[dict] = []
@@ -122,7 +124,13 @@ async def test_files_endpoint_limit_bounds_b2_listing_work(client, monkeypatch):
             return {
                 "IsTruncated": True,
                 "NextContinuationToken": "page-2",
-                "Contents": [_object("uploads/one.txt", age_minutes=0)],
+                "Contents": [
+                    _object("uploads/one.txt", age_minutes=0),
+                    *[
+                        _object(f"uploads/file-{index}.txt", age_minutes=10)
+                        for index in range(999)
+                    ],
+                ],
             }
 
     fake_client = FakeS3Client()
@@ -137,7 +145,7 @@ async def test_files_endpoint_limit_bounds_b2_listing_work(client, monkeypatch):
         {
             "Bucket": "test-bucket",
             "Prefix": "",
-            "MaxKeys": 1,
+            "MaxKeys": 1000,
         },
     ]
 

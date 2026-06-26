@@ -32,7 +32,7 @@ endpoints for stem streaming and download.
 - key: string (file key for get/download/delete — no path traversal)
 
 ## Outputs
-- `GET /files` → `FileMetadata[]` (B2 listing work is capped by `limit`, then sorted most recent first)
+- `GET /files` → `FileMetadata[]` (one bounded B2 listing window, up to 1000 keys, sorted most recent first, then sliced to `limit`; not globally newest-first once a matching prefix exceeds that window)
 - `GET /files/{key}` → `FileMetadata`
 - `GET /files/{key}/download` → `{ url: string }` (presigned URL, attachment disposition, 10-min expiry). Increments the `total_downloads` counter exposed on `/files/stats`. The counter is persisted to `services/api/data/download_count.json` (override via `DOWNLOAD_COUNT_FILE` env var) so it survives API restarts.
 - `GET /files/{key}/preview` → `{ url: string }` (presigned URL for inline rendering, 10-min expiry). Does **not** increment the download counter — used by the preview modal for inline audio playback (and reused by the Stem Library for streaming).

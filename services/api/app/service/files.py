@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 _DANGEROUS_KEY_RE = re.compile(r"(\.\./|/\.\.|\\|%2e%2e|%00|\x00)")
 _download_lock = Lock()
+FILE_LIST_WINDOW = 1000
 
 
 def _counter_path() -> Path:
@@ -109,9 +110,8 @@ def get_files(prefix: str = "", limit: int = 100) -> list[FileMetadata]:
     if limit < 1 or limit > 1000:
         raise ValueError("Limit must be between 1 and 1000")
     # S3 list_objects_v2 returns objects in lexicographic order, not by date.
-    # Bound B2 work to the trusted request limit, then sort and slice
-    # defensively in case a repo stub or S3-compatible backend over-returns.
-    files = list_files(prefix=prefix, max_keys=limit)
+    # Fetch one bounded server-side window, then sort and slice it.
+    files = list_files(prefix=prefix, max_keys=FILE_LIST_WINDOW)
     files.sort(key=lambda f: f.uploaded_at, reverse=True)
     return files[:limit]
 
