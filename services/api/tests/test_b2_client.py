@@ -3,6 +3,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from app.repo import b2_client
+from app.repo.s3_listing import list_objects
 
 
 def _object(
@@ -156,6 +157,18 @@ async def test_files_endpoint_limit_uses_single_bounded_b2_page(
 def test_list_files_rejects_invalid_max_keys():
     with pytest.raises(ValueError, match="max_keys must be at least 1"):
         b2_client.list_files(max_keys=0)
+
+
+def test_list_objects_rejects_oversized_page_size():
+    with pytest.raises(ValueError, match="page_size must be between 1 and 1000"):
+        list_objects(
+            client=None,
+            bucket="test-bucket",
+            max_items=1,
+            page_size=1001,
+            failure_message="B2 list failed",
+            operation="test",
+        )
 
 
 def test_get_upload_stats_paginates_all_pages(monkeypatch):

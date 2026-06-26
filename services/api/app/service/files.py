@@ -171,7 +171,7 @@ def remove_file(key: str) -> None:
 
 def get_upload_activity(days: int = 7) -> list[DailyUploadCount]:
     """Return daily upload counts for the last N days."""
-    files = list_files(prefix="", max_keys=1000)
+    files = list_files(prefix="", max_keys=FILE_LIST_WINDOW)
     today = datetime.now(UTC).date()
     cutoff = today - timedelta(days=days - 1)
 

@@ -45,8 +45,8 @@ def list_objects(
     """Return typed S3 object summaries, stopping at the requested budget."""
     if max_items is not None and max_items < 1:
         raise ValueError("max_items must be at least 1")
-    if page_size < 1:
-        raise ValueError("page_size must be at least 1")
+    if page_size < 1 or page_size > B2_LIST_PAGE_SIZE:
+        raise ValueError(f"page_size must be between 1 and {B2_LIST_PAGE_SIZE}")
 
     start = time.monotonic()
     pages = 0
